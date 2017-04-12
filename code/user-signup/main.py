@@ -14,93 +14,113 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import webapp2
-import re
-import cgi
 
-form = """
-<form method="post">
+form="""
+<form method = "post">
     <h1>User Signup</h1>
     <br>
     <label>
         Username
-        <input type = "text", name = "username", value = "%(username_error)s"/>
-        <div style = "color: red">%(username_error)s</div>
+        <input type = "text", name = "username", value = "%(username)s"/>
+        <div style = "color: red">%(userError)s</div>
     </label>
     <br>
     <label>
         Password
-        <input type="password" name="password" value="%(password_error)s"/>
-        <div style = "color: red">%(password_error)s</div>
+        <input type = "password", name = "password", value = ""/>
+        <div style = "color: red">%(passError)s</div>
     </label>
     <br>
     <label>
         Verify Password
-        <input type="password" name="confirmation" value="%(confirmation_error)s">
-        <div style = "color: red">%(confirmation_error)s</div>
+        <input type = "password", name = "verify", value = ""/>
+        <div style = "color: red">%(verifyError)s</div>
     </label>
     <br>
     <label>
         Email (optional)
-        <input type = "text", name = "email", value = "%(email_error)s"/>
-        <div style = "color: red">%(email_error)s</div>
+        <input type = "text", name = "email", value = "%(email)s"/>
     </label>
     <br>
     <input type = "submit"/>
 </form>
 """
+
+import webapp2
+import re
+import cgi
+
 USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
-def verify_username(username):
+def valid_username(username):
     return username and USER_RE.match(username)
 
 PASS_RE = re.compile(r"^.{3,20}$")
-def verify_password(password):
+def valid_password(password):
     return password and PASS_RE.match(password)
 
 EMAIL_RE = re.compile(r"^[\S]+@[\S]+.[\S]+$")
 def valid_email(email):
-    return not email or USER_EMAIL.match(email)
+    return not email or EMAIL_RE.match(email)
 
-def escape(s):
+def escape (s):
     return cgi.escape(s, quote=True)
 
-class MainPage(webapp2.RequestHandler):
+class MainHandler(webapp2.RequestHandler):
+
+    def display_form(self, username = "", userError = "", password = "", passError = "", verify = "", verifyError = "", email = "", emailError = ""):
+        self.response.write(form % {"username":escape(username),
+                                    "userError": userError,
+                                    "passError": passError,
+                                    "verifyError": verifyError,
+                                    "email":escape(email),
+                                    "emailError": emailError, })
+
     def get(self):
-        self.response.out.write(form)
+        self.display_form()
 
     def post(self):
-        username = self.request.get("username")
-        password = self.request.get("password")
-        confirmation = self.request.get("confirmation")
-        email = self.request.get("email")
+        error = False
+        username = self.request.get('username')
+        password = self.request.get('password')
+        verify = self.request.get('verify')
+        email = self.request.get('email')
 
-        if not verify_username(username):
-            error="That is not a valid username!"
-            self.response.out.write(form %{"username_error": error})
+        userError = ""
+        passError = ""
+        verifyError = ""
+        emailError = ""
 
-        if not verify_password(password):
-            error="That is not a valid password!"
-            self.response.out.write(form % {"password_error": error})
+        if not valid_username(username):
+            error = True
+            userError = "That is an invalid Username"
 
-        if not password == confirmation:
-            error="Your emails do not match."
-            self.response.out.write(form % {"confirmation_error": error})
+
+        if not valid_password(password):
+            error = True
+            passError = "That is an invalid Password"
+
+
+        if not password == verify:
+            error = True
+            verifyError = "Your passwords do not match"
 
         if not valid_email(email):
-            error="That is not a valid email."
-            self.response.out.write(form % {"email_error":error})
+            error = True
+            emailError = "Your email is invalid"
 
+        if error:
+            self.display_form(username, userError, passError, verifyError, email, emailError)
         else:
             self.redirect("/welcome?username="+username)
-        #redirect "/welcome+?username=" + username
-class Welcome(webapp2.RequestHandler):
+
+
+class WelcomeHandler(webapp2.RequestHandler):
     def get(self):
-# get username paramater
-#print and use substitution top print welcome message
         username = self.request.get('username')
         self.response.out.write("Welcome, {0}" .format(username))
 
+
 app = webapp2.WSGIApplication([
-('/',MainPage),
-('/welcome', Welcome)
+    ('/', MainHandler),
+    ('/welcome', WelcomeHandler)
 ], debug=True)
